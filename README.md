@@ -4,6 +4,7 @@ This is a simple Discord bot that listens to Bitcraft Chat, and then print the i
 
 ## Usage
 
+0. Log into the game with the account you are going to use, and physically locate them in the Region you would like to get the chat of.
 1. Run the app for the first time. It should generate a `config.json` you can fill up.
 2. Fill in the `config.json`.
       * `DiscordToken`: Get it from https://discord.com/developers/applications, go to "Bot" and then click on "Reset Token" to get one.
