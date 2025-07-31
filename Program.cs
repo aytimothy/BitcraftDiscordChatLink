@@ -125,6 +125,7 @@ namespace MyApp {
             DiscordClient = new DiscordSocketClient();
             DiscordClient.LoggedIn += App.DiscordClient_OnLoggedIn;
             DiscordClient.LoggedOut += App.DiscordClient_OnLoggedOut;
+            DiscordClient.Disconnected += App.DiscordClient_OnDisconnected;
             Task loginTask = DiscordClient.LoginAsync(TokenType.Bot, Config.DiscordToken);
 
             while (!loginTask.IsCompleted) {

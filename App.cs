@@ -171,5 +171,12 @@ namespace MyApp {
             Console.WriteLine($"REDUCER ERROR: {ctx.ConnectionId}");
             Console.WriteLine($"Reducer: {ex}");
         }
+
+        public Task DiscordClient_OnDisconnected(Exception arg) {
+            Console.WriteLine("Disconnected from Discord!");
+            Task.Delay(1000 * 5);
+            Console.WriteLine("Reconnecting...");
+            return Program.DiscordClient.StartAsync();
+        }
     }
 }
