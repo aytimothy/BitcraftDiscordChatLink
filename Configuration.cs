@@ -11,4 +11,6 @@ public struct Configuration {
     public string SpacetimeDbLastAccessToken;
     public bool OutputEverything;
     public int BitcraftRegionNumber;
+    public string[] AllowedSpeakers;
+    public bool OutputRawLog;
 }

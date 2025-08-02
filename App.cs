@@ -1,4 +1,7 @@
-﻿using Discord.WebSocket;
+﻿using Discord;
+using Discord.Rest;
+using Discord.WebSocket;
+using Newtonsoft.Json;
 using SpacetimeDB;
 using SpacetimeDB.Types;
 using System;
@@ -7,15 +10,14 @@ using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Discord;
-using Discord.Rest;
-using Newtonsoft.Json;
 
 namespace MyApp {
     public class App {
         public static App Instance = null;
         public TextWriter LogWriter;
+        public TextWriter RawLogWriter;
 
         private bool DiscordLoggedIn = false;
         private bool SpacetimeDbConnected = false;
@@ -28,6 +30,8 @@ namespace MyApp {
                 throw new InvalidOperationException("App instance already exists.");
 
             LogWriter = new StreamWriter(Program.LogFile);
+            if (Program.Config.OutputRawLog)
+                RawLogWriter = new StreamWriter(Program.RawLogFile);
         }
 
         public async Task Run() {
@@ -80,6 +84,12 @@ namespace MyApp {
                 }
             }
 
+            if (Program.Config.OutputRawLog) {
+                string rawLogLine = "+" + JsonConvert.SerializeObject(row);
+                RawLogWriter.WriteLine(rawLogLine);
+                RawLogWriter.Flush();
+            }
+
             if (!SpacetimeDbCaughtUp)
                 return; // ignore all previous data.
             DateTimeOffset timestamp = DateTimeOffset.FromUnixTimeSeconds(row.Timestamp);
@@ -99,6 +109,23 @@ namespace MyApp {
             if (outputChannel == null)
                 Console.WriteLine("[DEBUG] outputChannel is null.");
         }
+        void SpacetimeDb_Bitcraft_ChatMessageState_OnUpdate(EventContext context, ChatMessageState oldrow, ChatMessageState newrow) {
+            if (Program.Config.OutputRawLog) {
+                string oldRow = JsonConvert.SerializeObject(oldrow);
+                string newRow = JsonConvert.SerializeObject(newrow);
+                string rawLogLine = $"*{oldRow} -> {newRow}";
+                RawLogWriter.WriteLine(rawLogLine);
+                RawLogWriter.Flush();
+            }
+        }
+
+        void SpacetimeDb_Bitcraft_ChatMessageState_OnDelete(EventContext context, ChatMessageState row) {
+            if (Program.Config.OutputRawLog) {
+                string rawLogLine = "-" + JsonConvert.SerializeObject(row);
+                RawLogWriter.WriteLine(rawLogLine);
+                RawLogWriter.Flush();
+            }
+        }
 
         public async Task DiscordClient_OnLoggedIn() {
             Console.WriteLine($"Logged into Discord.");
@@ -106,7 +133,27 @@ namespace MyApp {
             if (discordApp != null)
                 Console.WriteLine($"To add the bot to your server, use this URL: https://discord.com/api/oauth2/authorize?client_id={discordApp.Id}&permissions=2048&scope=bot%20applications.commands");
 
+            outputChannel = Program.DiscordClient.GetChannel(ulong.Parse(Program.Config.DiscordOutputChannel));
+            Program.DiscordClient.MessageReceived += DiscordClient_OnMessageReceived;
             Instance.DiscordLoggedIn = true;
+        }
+
+        private Task DiscordClient_OnMessageReceived(SocketMessage chatMessage) {
+            if (chatMessage.Channel.Id != ulong.Parse(Program.Config.DiscordOutputChannel))
+                return Task.CompletedTask; // ignore it
+            if (chatMessage.Source != MessageSource.User)
+                return Task.CompletedTask; // ignore it
+            bool isAnAllowedSpeaker = Program.Config.AllowedSpeakers.Select(x => ulong.Parse(x)).Any(x => x == chatMessage.Author.Id);
+            if (isAnAllowedSpeaker) {
+                string sanitizedMessage = chatMessage.CleanContent;
+                sanitizedMessage = Regex.Replace(sanitizedMessage, "<.*?>", String.Empty);
+                bool mightContainHtml = sanitizedMessage.Contains('<') && sanitizedMessage.Contains('>');
+                if (mightContainHtml)
+                    sanitizedMessage = sanitizedMessage.Replace("<", "").Replace(">", "");
+                Program.SpacetimeDbConnection.Reducers.ChatPostMessage(new PlayerChatPostMessageRequest(sanitizedMessage, ChatChannel.Region, 0));
+                
+            }
+            return Task.CompletedTask;
         }
 
         public Task DiscordClient_OnLoggedOut() {
@@ -121,6 +168,7 @@ namespace MyApp {
 
         public static void SpacetimeDb_OnDisconnect(DbConnection conn, Exception? e) {
             Console.WriteLine("Disconnected from SpacetimeDb Database...");
+            Console.WriteLine(e);
 
             Reconnect();
         }
@@ -164,6 +212,8 @@ namespace MyApp {
                 // .SubscribeToAllTables();
                 .Subscribe(new string[] { "SELECT * FROM chat_message_state" });
             Program.SpacetimeDbConnection.Db.ChatMessageState.OnInsert += SpacetimeDb_Bitcraft_ChatMessageState_OnInsert;
+            Program.SpacetimeDbConnection.Db.ChatMessageState.OnUpdate += SpacetimeDb_Bitcraft_ChatMessageState_OnUpdate;
+            Program.SpacetimeDbConnection.Db.ChatMessageState.OnDelete += SpacetimeDb_Bitcraft_ChatMessageState_OnDelete;
             Program.SpacetimeDbConnection.OnUnhandledReducerError += SpacetimeDb_OnReducerError;
         }
 

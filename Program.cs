@@ -12,7 +12,8 @@ namespace MyApp {
         public static Configuration Config;
 
         public static DbConnection SpacetimeDbConnection;
-        public static FileStream LogFile;
+        public static FileStream LogFile = null;
+        public static FileStream RawLogFile = null;
         public static DiscordSocketClient DiscordClient;
         public static App App;
 
@@ -80,7 +81,8 @@ namespace MyApp {
                     SpacetimeDbName = "bitcraft-6",
                     SpacetimeDbLastAccessToken = "NA",
                     BitcraftRegionNumber = 6,
-                    OutputEverything = false
+                    OutputEverything = false,
+                    AllowedSpeakers = [ "" ]
                 };
                 string configJson = JsonConvert.SerializeObject(Config, Formatting.Indented);
                 File.WriteAllText(configurationFile, configJson);
@@ -93,6 +95,10 @@ namespace MyApp {
             string currentDirectory = Environment.CurrentDirectory;
             string logFilePath = Path.Combine(currentDirectory, "log.txt");
             LogFile = new FileStream(logFilePath, FileMode.Append);
+            if (Config.OutputRawLog) {
+                string rawLogFilePath = Path.Combine(currentDirectory, "raw.txt");
+                RawLogFile = new FileStream(rawLogFilePath, FileMode.Append);
+            }
 
             App = new App();
             

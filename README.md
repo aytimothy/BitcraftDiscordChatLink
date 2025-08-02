@@ -16,4 +16,11 @@ This is a simple Discord bot that listens to Bitcraft Chat, and then print the i
 	  * `SpacetimeDbLastAccessToken`: The last access token used. This was a debug value I forgot to remove.
 	  * `OutputEverything`: Do you want to eavesdrop on the WHOLE server? You should leave this to `false`.
 	  * `BitcraftRegionNumber`: Your Bitcraft region to filter messages for. Depending on your key, you may get everything, but a player access token will only return results for the region they are physically in.
+	  * `OutputRawLog`: Output raw packets. Leave this to `false`; for debugging purposes only.
 3. Run `BitcraftChatListener.exe` again.
+
+## Troubleshooting
+
+> The remote party closed the WebSocket connection without completing the close handshake.
+
+Try logging into the game with the account that owns the token you provided in `config.json`, log out of the game, and reconnect. Re-acquire your token if it still doesn't work.
