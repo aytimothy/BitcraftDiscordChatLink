@@ -4,14 +4,7 @@ using Discord.WebSocket;
 using Newtonsoft.Json;
 using SpacetimeDB;
 using SpacetimeDB.Types;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace MyApp {
     public class App {
@@ -85,9 +78,7 @@ namespace MyApp {
             }
 
             if (Program.Config.OutputRawLog) {
-                string rawLogLine = "+" + JsonConvert.SerializeObject(row);
-                RawLogWriter.WriteLine(rawLogLine);
-                RawLogWriter.Flush();
+                RawLogAdd("ChatMessageState", row);
             }
 
             if (!SpacetimeDbCaughtUp)
@@ -111,19 +102,13 @@ namespace MyApp {
         }
         void SpacetimeDb_Bitcraft_ChatMessageState_OnUpdate(EventContext context, ChatMessageState oldrow, ChatMessageState newrow) {
             if (Program.Config.OutputRawLog) {
-                string oldRow = JsonConvert.SerializeObject(oldrow);
-                string newRow = JsonConvert.SerializeObject(newrow);
-                string rawLogLine = $"*{oldRow} -> {newRow}";
-                RawLogWriter.WriteLine(rawLogLine);
-                RawLogWriter.Flush();
+                RawLogUpdate("ChatMessageState", oldrow, newrow);
             }
         }
 
         void SpacetimeDb_Bitcraft_ChatMessageState_OnDelete(EventContext context, ChatMessageState row) {
             if (Program.Config.OutputRawLog) {
-                string rawLogLine = "-" + JsonConvert.SerializeObject(row);
-                RawLogWriter.WriteLine(rawLogLine);
-                RawLogWriter.Flush();
+                RawLogDelete("ChatMessageState", row);
             }
         }
 
@@ -210,7 +195,9 @@ namespace MyApp {
             Program.SpacetimeDbConnection.SubscriptionBuilder()
                 .OnApplied(SpacetimeDb_OnApplied)
                 // .SubscribeToAllTables();
-                .Subscribe(new string[] { "SELECT * FROM chat_message_state" });
+                .Subscribe(new string[] {
+                    "SELECT * FROM chat_message_state"
+                });
             Program.SpacetimeDbConnection.Db.ChatMessageState.OnInsert += SpacetimeDb_Bitcraft_ChatMessageState_OnInsert;
             Program.SpacetimeDbConnection.Db.ChatMessageState.OnUpdate += SpacetimeDb_Bitcraft_ChatMessageState_OnUpdate;
             Program.SpacetimeDbConnection.Db.ChatMessageState.OnDelete += SpacetimeDb_Bitcraft_ChatMessageState_OnDelete;
@@ -227,6 +214,24 @@ namespace MyApp {
             Task.Delay(1000 * 5);
             Console.WriteLine("Reconnecting...");
             return Program.DiscordClient.StartAsync();
+        }
+
+        public void RawLogAdd(string tableName, object entity) {
+            string logLine = $"[{tableName}] +{JsonConvert.SerializeObject(entity)}";
+            RawLogWriter.WriteLine(logLine);
+            RawLogWriter.Flush();
+        }
+
+        public void RawLogDelete(string tableName, object entity) {
+            string logLine = $"[{tableName}] -{JsonConvert.SerializeObject(entity)}";
+            RawLogWriter.WriteLine(logLine);
+            RawLogWriter.Flush();
+        }
+
+        public void RawLogUpdate(string tableName, object oldEntity, object newEntity) {
+            string logLine = $"[{tableName}] *{JsonConvert.SerializeObject(oldEntity)} -> {JsonConvert.SerializeObject(newEntity)}";
+            RawLogWriter.WriteLine(logLine);
+            RawLogWriter.Flush();
         }
     }
 }
