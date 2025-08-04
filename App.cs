@@ -105,7 +105,7 @@ namespace MyApp {
         string HandleMentions(string sanitizedString) {
             string current = sanitizedString;
             foreach (string username in Program.Config.DiscordMentions.Keys) {
-                current = Regex.Replace(current, $"(.*)\\b{username}\\b(.*)", $"<@{Program.Config.DiscordMentions[username]}>", RegexOptions.IgnoreCase & RegexOptions.Multiline);
+                current = Regex.Replace(current, $"\\b{username}\\b", $"<@{Program.Config.DiscordMentions[username]}>", RegexOptions.IgnoreCase & RegexOptions.Multiline);
             }
             return current;
         }
