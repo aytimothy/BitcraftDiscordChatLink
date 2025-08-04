@@ -13,4 +13,6 @@ public struct Configuration {
     public int BitcraftRegionNumber;
     public string[] AllowedSpeakers;
     public bool OutputRawLog;
+    // key = username, value = discord user id
+    public Dictionary<string, string> DiscordMentions;
 }

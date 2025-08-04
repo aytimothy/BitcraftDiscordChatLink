@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using System.Net.WebSockets;
+using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
 using Newtonsoft.Json;
@@ -94,12 +95,21 @@ namespace MyApp {
 
             if (outputChannel == null)
                 outputChannel = Program.DiscordClient.GetChannel(ulong.Parse(Program.Config.DiscordOutputChannel));
-            string discordLine = $"[{GetChannelName(row.ChannelId)}] {row.Username}: {Format.Sanitize(row.Text)}";
+            string discordLine = $"[{GetChannelName(row.ChannelId)}] {row.Username}: {HandleMentions(Format.Sanitize(row.Text))}";
             if (outputChannel != null && outputChannel is IMessageChannel textChannel)
                 textChannel.SendMessageAsync(discordLine);
             if (outputChannel == null)
                 Console.WriteLine("[DEBUG] outputChannel is null.");
         }
+
+        string HandleMentions(string sanitizedString) {
+            string current = sanitizedString;
+            foreach (string username in Program.Config.DiscordMentions.Keys) {
+                current = Regex.Replace(current, $"(.*)\\b{username}\\b(.*)", $"<@{Program.Config.DiscordMentions[username]}>", RegexOptions.IgnoreCase & RegexOptions.Multiline);
+            }
+            return current;
+        }
+
         void SpacetimeDb_Bitcraft_ChatMessageState_OnUpdate(EventContext context, ChatMessageState oldrow, ChatMessageState newrow) {
             if (Program.Config.OutputRawLog) {
                 RawLogUpdate("ChatMessageState", oldrow, newrow);
@@ -153,7 +163,10 @@ namespace MyApp {
 
         public static void SpacetimeDb_OnDisconnect(DbConnection conn, Exception? e) {
             Console.WriteLine("Disconnected from SpacetimeDb Database...");
-            Console.WriteLine(e);
+            if (e is WebSocketException && e.HResult == -2147467259)    // 0x80004005 or "The remote party closed the WebSocket connection without completing the close handshake."
+                Console.WriteLine("[WARN] Your token's Steam ticket may be out of date. You need to log into the game on Steam to be able to login again!");
+            if (e != null)
+                Console.WriteLine(e);
 
             Reconnect();
         }

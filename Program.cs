@@ -82,8 +82,11 @@ namespace MyApp {
                     SpacetimeDbLastAccessToken = "NA",
                     BitcraftRegionNumber = 6,
                     OutputEverything = false,
-                    AllowedSpeakers = [ "" ]
+                    AllowedSpeakers = [ "" ],
+                    DiscordMentions = new Dictionary<string, string>()
                 };
+                Config.DiscordMentions.Add("aytimothy", "108826894937374720");
+                Config.DiscordMentions.Add("ayt", "108826894937374720");
                 string configJson = JsonConvert.SerializeObject(Config, Formatting.Indented);
                 File.WriteAllText(configurationFile, configJson);
             }
