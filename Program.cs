@@ -18,7 +18,7 @@ namespace MyApp {
         public static App App;
 
         static int Main(string[] args) {
-            Console.WriteLine("Bitcraft Discord Chat Link v1.0 by aytimothy");
+            Console.WriteLine("Bitcraft Discord Chat Link v1.1 by aytimothy");
 
             if (!ReadConfig()) {
                 Console.WriteLine("Error: Could not find a configuration file. Creating one now!");

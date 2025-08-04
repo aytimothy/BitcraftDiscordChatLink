@@ -17,6 +17,7 @@ This is a simple Discord bot that listens to Bitcraft Chat, and then print the i
 	  * `OutputEverything`: Do you want to eavesdrop on the WHOLE server? You should leave this to `false`.
 	  * `BitcraftRegionNumber`: Your Bitcraft region to filter messages for. Depending on your key, you may get everything, but a player access token will only return results for the region they are physically in.
 	  * `OutputRawLog`: Output raw packets. Leave this to `false`; for debugging purposes only.
+	  * `DiscordMentions`: Pings a user when their username is mentioned. Note that false positives can happen when a user's name is a common dictionary word. This is a key-value pair of the username and the Discord User ID. The default setting pings me.
 3. Run `BitcraftChatListener.exe` again.
 
 ## Troubleshooting
