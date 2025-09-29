@@ -1,11 +1,12 @@
 ﻿using System.Diagnostics;
 using System.Web;
+using BitCraftRegion.Types;
 using Discord;
 using Discord.WebSocket;
 using Newtonsoft.Json;
 using RestSharp;
 using SpacetimeDB;
-using SpacetimeDB.Types;
+using BitCraftRegion.Types;
 
 namespace MyApp {
     internal class Program {
@@ -131,11 +132,12 @@ namespace MyApp {
             });
             websocketThread.Start();
 
+            // Code copied to App.cs:DiscordClient_OnDisconnected:256
             DiscordClient = new DiscordSocketClient();
             DiscordClient.LoggedIn += App.DiscordClient_OnLoggedIn;
             DiscordClient.LoggedOut += App.DiscordClient_OnLoggedOut;
             DiscordClient.Disconnected += App.DiscordClient_OnDisconnected;
-            Task loginTask = DiscordClient.LoginAsync(TokenType.Bot, Config.DiscordToken);
+            Task loginTask = DiscordClient.LoginAsync(TokenType.Bot, Config.DiscordToken); 
 
             while (!loginTask.IsCompleted) {
                 Task.Delay(1000);
@@ -147,6 +149,8 @@ namespace MyApp {
             while (!runtime.IsCompleted) {
                 Task.Delay(1000);
             }
+
+            Console.WriteLine("Goodbye!");
         }
     }
 }

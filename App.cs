@@ -4,8 +4,8 @@ using Discord.Rest;
 using Discord.WebSocket;
 using Newtonsoft.Json;
 using SpacetimeDB;
-using SpacetimeDB.Types;
 using System.Text.RegularExpressions;
+using BitCraftRegion.Types;
 
 namespace MyApp {
     public class App {
@@ -16,6 +16,9 @@ namespace MyApp {
         private bool DiscordLoggedIn = false;
         private bool SpacetimeDbConnected = false;
         public bool SpacetimeDbCaughtUp = false;
+        public static bool SpacetimeWorking = false;
+
+        public CancellationTokenSource CancellationTokenSource;
 
         public App() {
             if (Instance == null)
@@ -24,8 +27,18 @@ namespace MyApp {
                 throw new InvalidOperationException("App instance already exists.");
 
             LogWriter = new StreamWriter(Program.LogFile);
+            CancellationTokenSource = new CancellationTokenSource();
             if (Program.Config.OutputRawLog)
                 RawLogWriter = new StreamWriter(Program.RawLogFile);
+        }
+
+        ~App() {
+            LogWriter.Flush();
+            LogWriter.Close();
+            if (Program.Config.OutputRawLog) {
+                RawLogWriter.Flush();
+                RawLogWriter.Close();
+            }
         }
 
         public async Task Run() {
@@ -55,13 +68,15 @@ namespace MyApp {
                 await Task.Delay(1000);
             }
 
-            // Never exit...
-            await Task.Delay(-1);
+            while (!CancellationTokenSource.IsCancellationRequested) {
+                await Task.Delay(100);
+            }
         }
 
         private void SpacetimeDb_OnApplied(SubscriptionEventContext obj) {
             Console.WriteLine("Caught up to latest messages...");
             SpacetimeDbCaughtUp = true;
+            SpacetimeWorking = true;
         }
 
         SocketChannel? outputChannel;
@@ -122,6 +137,25 @@ namespace MyApp {
             }
         }
 
+        void SpacetimeDb_Bitcraft_PlayerReportState_OnDelete(EventContext context, PlayerReportState row) {
+            if (Program.Config.OutputRawLog) {
+                RawLogDelete("PlayerReportState", row);
+            }
+        }
+
+        void SpacetimeDb_Bitcraft_PlayerReportState_OnUpdate(EventContext context, PlayerReportState oldrow, PlayerReportState newrow) {
+            if (Program.Config.OutputRawLog) {
+                RawLogUpdate("PlayerReportState", oldrow, newrow);
+            }
+        }
+
+        void SpacetimeDb_Bitcraft_PlayerReportState_OnInsert(EventContext context, PlayerReportState row) {
+            if (Program.Config.OutputRawLog) {
+                RawLogAdd("PlayerReportState", row);
+            }
+            Console.WriteLine($"[REPORT] {row.ReporterEntityId} reported {row.ReportedPlayerUsername} ({row.ReportedPlayerEntityId}) for {row.ReportType}");
+        }
+
         public async Task DiscordClient_OnLoggedIn() {
             Console.WriteLine($"Logged into Discord.");
             RestApplication discordApp = await Program.DiscordClient.GetApplicationInfoAsync();
@@ -167,6 +201,14 @@ namespace MyApp {
                 Console.WriteLine("[WARN] Your token's Steam ticket may be out of date. You need to log into the game on Steam to be able to login again!");
             if (e != null)
                 Console.WriteLine(e);
+
+            if (SpacetimeWorking) {
+                SpacetimeWorking = false;
+                Program.DiscordClient.GetUser(108826894937374720).SendMessageAsync("BitcraftChatListener was disconnected from Bitcraft! Ticket update required!");
+                SocketChannel? outputChannel = Program.DiscordClient.GetChannel(ulong.Parse(Program.Config.DiscordOutputChannel));
+                if (outputChannel != null && outputChannel is IMessageChannel textChannel)
+                    textChannel.SendMessageAsync("[WARN] BitcraftChatListener was disconnected from Bitcraft! Ticket update required!");
+            }
 
             Reconnect();
         }
@@ -218,15 +260,26 @@ namespace MyApp {
         }
 
         private void SpacetimeDb_OnReducerError(ReducerEventContext ctx, Exception ex) {
-            Console.WriteLine($"REDUCER ERROR: {ctx.ConnectionId}");
-            Console.WriteLine($"Reducer: {ex}");
+            Console.WriteLine($"REDUCER ERROR: {ex.Message}");
+            Console.WriteLine($"Reducer: {ctx.Event.Reducer} ");
+            Console.WriteLine($"Connection: {ctx.ConnectionId}, Sender: {ctx.Identity}");
+            Console.WriteLine(ex.StackTrace);
         }
 
-        public Task DiscordClient_OnDisconnected(Exception arg) {
-            Console.WriteLine("Disconnected from Discord!");
-            Task.Delay(1000 * 5);
-            Console.WriteLine("Reconnecting...");
-            return Program.DiscordClient.StartAsync();
+        public async Task DiscordClient_OnDisconnected(Exception arg) {
+            Console.WriteLine("Disconnected from Discord...");
+            Program.DiscordClient.Dispose();
+            await Task.Delay(3 * 1000);
+            Console.WriteLine("Reconnecting to Discord...");
+            // Code copied from Program.cs:Initialize:135
+            Program.DiscordClient = new DiscordSocketClient(new DiscordSocketConfig() {
+                UseInteractionSnowflakeDate = false
+            });
+            Program.DiscordClient.LoggedIn += DiscordClient_OnLoggedIn;
+            Program.DiscordClient.LoggedOut += DiscordClient_OnLoggedOut;
+            Program.DiscordClient.Disconnected += DiscordClient_OnDisconnected;
+            await Program.DiscordClient.LoginAsync(TokenType.Bot, Program.Config.DiscordToken);
+            await Program.DiscordClient.StartAsync();
         }
 
         public void RawLogAdd(string tableName, object entity) {
