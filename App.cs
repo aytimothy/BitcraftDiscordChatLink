@@ -6,6 +6,8 @@ using Newtonsoft.Json;
 using SpacetimeDB;
 using System.Text.RegularExpressions;
 using BitCraftRegion.Types;
+using Discord.Webhook;
+using RestSharp;
 
 namespace MyApp {
     public class App {
@@ -137,25 +139,6 @@ namespace MyApp {
             }
         }
 
-        void SpacetimeDb_Bitcraft_PlayerReportState_OnDelete(EventContext context, PlayerReportState row) {
-            if (Program.Config.OutputRawLog) {
-                RawLogDelete("PlayerReportState", row);
-            }
-        }
-
-        void SpacetimeDb_Bitcraft_PlayerReportState_OnUpdate(EventContext context, PlayerReportState oldrow, PlayerReportState newrow) {
-            if (Program.Config.OutputRawLog) {
-                RawLogUpdate("PlayerReportState", oldrow, newrow);
-            }
-        }
-
-        void SpacetimeDb_Bitcraft_PlayerReportState_OnInsert(EventContext context, PlayerReportState row) {
-            if (Program.Config.OutputRawLog) {
-                RawLogAdd("PlayerReportState", row);
-            }
-            Console.WriteLine($"[REPORT] {row.ReporterEntityId} reported {row.ReportedPlayerUsername} ({row.ReportedPlayerEntityId}) for {row.ReportType}");
-        }
-
         public async Task DiscordClient_OnLoggedIn() {
             Console.WriteLine($"Logged into Discord.");
             RestApplication discordApp = await Program.DiscordClient.GetApplicationInfoAsync();
@@ -208,6 +191,7 @@ namespace MyApp {
                 SocketChannel? outputChannel = Program.DiscordClient.GetChannel(ulong.Parse(Program.Config.DiscordOutputChannel));
                 if (outputChannel != null && outputChannel is IMessageChannel textChannel)
                     textChannel.SendMessageAsync("[WARN] BitcraftChatListener was disconnected from Bitcraft! Ticket update required!");
+                SendCriticalErrorToAytimothyOnDiscord("Disconnected from SpacetimeDb...").Start();
             }
 
             Reconnect();
@@ -268,6 +252,7 @@ namespace MyApp {
 
         public async Task DiscordClient_OnDisconnected(Exception arg) {
             Console.WriteLine("Disconnected from Discord...");
+            SendCriticalErrorToAytimothyOnDiscord("Disconnected from Discord...").Start();
             Program.DiscordClient.Dispose();
             await Task.Delay(3 * 1000);
             Console.WriteLine("Reconnecting to Discord...");
@@ -280,6 +265,13 @@ namespace MyApp {
             Program.DiscordClient.Disconnected += DiscordClient_OnDisconnected;
             await Program.DiscordClient.LoginAsync(TokenType.Bot, Program.Config.DiscordToken);
             await Program.DiscordClient.StartAsync();
+        }
+
+        public async static Task SendCriticalErrorToAytimothyOnDiscord(string error) {
+            string webhookUrl = Program.Config.DiscordCriticalErrorWebhook;
+            DiscordWebhookClient webhookClient = new DiscordWebhookClient(webhookUrl);
+            await webhookClient.SendMessageAsync(error);
+            webhookClient.Dispose();
         }
 
         public void RawLogAdd(string tableName, object entity) {

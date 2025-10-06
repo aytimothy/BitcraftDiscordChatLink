@@ -19,7 +19,7 @@ namespace MyApp {
         public static App App;
 
         static int Main(string[] args) {
-            Console.WriteLine("Bitcraft Discord Chat Link v1.1 by aytimothy");
+            Console.WriteLine("Bitcraft Discord Chat Link v1.2 by aytimothy");
 
             if (!ReadConfig()) {
                 Console.WriteLine("Error: Could not find a configuration file. Creating one now!");
@@ -84,7 +84,8 @@ namespace MyApp {
                     BitcraftRegionNumber = 6,
                     OutputEverything = false,
                     AllowedSpeakers = [ "" ],
-                    DiscordMentions = new Dictionary<string, string>()
+                    DiscordMentions = new Dictionary<string, string>(),
+                    DiscordCriticalErrorWebhook = "https://discord.com/api/webhooks/<channel-id>/<token>"
                 };
                 Config.DiscordMentions.Add("aytimothy", "108826894937374720");
                 Config.DiscordMentions.Add("ayt", "108826894937374720");

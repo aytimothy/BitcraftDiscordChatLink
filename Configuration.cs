@@ -13,6 +13,7 @@ public struct Configuration {
     public int BitcraftRegionNumber;
     public string[] AllowedSpeakers;
     public bool OutputRawLog;
+    public string DiscordCriticalErrorWebhook;
     // key = username, value = discord user id
     public Dictionary<string, string> DiscordMentions;
 }
